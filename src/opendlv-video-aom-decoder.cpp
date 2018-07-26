@@ -18,8 +18,8 @@
 #include "cluon-complete.hpp"
 #include "opendlv-standard-message-set.hpp"
 
-//#include <vpx/vpx_decoder.h>
-//#include <vpx/vp8dx.h>
+#include <aom/aom_decoder.h>
+#include <aom/aomdx.h>
 #include <libyuv.h>
 #include <X11/Xlib.h>
 
@@ -53,80 +53,71 @@ int32_t main(int32_t argc, char **argv) {
         std::unique_ptr<cluon::SharedMemory> sharedMemory(nullptr);
 
         std::atomic<bool> running{true};
-//        vpx_codec_ctx_t codec;
+        aom_codec_ctx_t codec;
         Display *display{nullptr};
         Visual *visual{nullptr};
         Window window{0};
         XImage *ximage{nullptr};
 
-        auto onNewImage = [&running, /*&codec,*/ &sharedMemory, &display, &visual, &window, &ximage, &NAME, &VERBOSE, &ID](cluon::data::Envelope &&env){
+        auto onNewImage = [&running, &codec, &sharedMemory, &display, &visual, &window, &ximage, &NAME, &VERBOSE, &ID](cluon::data::Envelope &&env){
             if (ID == env.senderStamp()) {
                 opendlv::proxy::ImageReading img = cluon::extractMessage<opendlv::proxy::ImageReading>(std::move(env));
-                if ( ("VP80" == img.format()) || ("VP90" == img.format()) ) {
-//                    const uint32_t WIDTH = img.width();
-//                    const uint32_t HEIGHT = img.height();
+                if ("AV01" == img.format()) {
+                    const uint32_t WIDTH = img.width();
+                    const uint32_t HEIGHT = img.height();
 
-//                    if (!sharedMemory) {
-//                        vpx_codec_err_t result{};
-//                        memset(&codec, 0, sizeof(codec));
-//                        if ("VP80" == img.format()) {
-//                            result = vpx_codec_dec_init(&codec, &vpx_codec_vp8_dx_algo, nullptr, 0);
-//                            if (!result) {
-//                                std::clog << "[opendlv-video-vpx-decoder]: Using " << vpx_codec_iface_name(&vpx_codec_vp8_dx_algo) << std::endl;
-//                            }
-//                        }
-//                        if ("VP90" == img.format()) {
-//                            result = vpx_codec_dec_init(&codec, &vpx_codec_vp9_dx_algo, nullptr, 0);
-//                            if (!result) {
-//                                std::clog << "[opendlv-video-vpx-decoder]: Using " << vpx_codec_iface_name(&vpx_codec_vp9_dx_algo) << std::endl;
-//                            }
-//                        }
-//                        if (result) {
-//                            std::cerr << "[opendlv-video-vpx-decoder]: Failed to initialize decoder: " << vpx_codec_err_to_string(result) << std::endl;
-//                            running.store(false);
-//                        }
-//                        else {
-//                            sharedMemory.reset(new cluon::SharedMemory{NAME, WIDTH * HEIGHT * 4});
-//                            std::clog << "[opendlv-video-vpx-decoder]: Created shared memory " << NAME << " (" << (WIDTH * HEIGHT * 4) << " bytes) for an ARGB image (width = " << WIDTH << ", height = " << HEIGHT << ")." << std::endl;
+                    if (!sharedMemory) {
+                        memset(&codec, 0, sizeof(codec));
+                        aom_codec_err_t result = aom_codec_dec_init(&codec, &aom_codec_av1_dx_algo, nullptr, 0);
+                        if (!result) {
+                            std::clog << "[opendlv-video-aom-decoder]: Using " << aom_codec_iface_name(&aom_codec_av1_dx_algo) << std::endl;
+                        }
+                        if (result) {
+                            std::cerr << "[opendlv-video-aom-decoder]: Failed to initialize decoder: " << aom_codec_err_to_string(result) << std::endl;
+                            running.store(false);
+                        }
+                        else {
+                            sharedMemory.reset(new cluon::SharedMemory{NAME, WIDTH * HEIGHT * 4});
+                            std::clog << "[opendlv-video-aom-decoder]: Created shared memory " << NAME << " (" << (WIDTH * HEIGHT * 4) << " bytes) for an ARGB image (width = " << WIDTH << ", height = " << HEIGHT << ")." << std::endl;
 
-//                            if (!sharedMemory && !sharedMemory->valid()) {
-//                                std::cerr << "[opendlv-video-vpx-decoder]: Failed to create shared memory." << std::endl;
-//                                running.store(false);
-//                            }
+                            if (!sharedMemory && !sharedMemory->valid()) {
+                                std::cerr << "[opendlv-video-aom-decoder]: Failed to create shared memory." << std::endl;
+                                running.store(false);
+                            }
 
-//                            if (VERBOSE) {
-//                                display = XOpenDisplay(NULL);
-//                                visual = DefaultVisual(display, 0);
-//                                window = XCreateSimpleWindow(display, RootWindow(display, 0), 0, 0, WIDTH, HEIGHT, 1, 0, 0);
-//                                ximage = XCreateImage(display, visual, 24, ZPixmap, 0, reinterpret_cast<char*>(sharedMemory->data()), WIDTH, HEIGHT, 32, 0);
-//                                XMapWindow(display, window);
-//                            }
-//                        }
-//                    }
-//                    if (sharedMemory) {
-//                        vpx_codec_iter_t it{nullptr};
-//                        vpx_image_t *yuvFrame{nullptr};
+                            if (VERBOSE) {
+                                display = XOpenDisplay(NULL);
+                                visual = DefaultVisual(display, 0);
+                                window = XCreateSimpleWindow(display, RootWindow(display, 0), 0, 0, WIDTH, HEIGHT, 1, 0, 0);
+                                ximage = XCreateImage(display, visual, 24, ZPixmap, 0, reinterpret_cast<char*>(sharedMemory->data()), WIDTH, HEIGHT, 32, 0);
+                                XMapWindow(display, window);
+                            }
+                        }
+                    }
+                    if (sharedMemory) {
+                        aom_codec_iter_t it{nullptr};
+                        aom_image_t *yuvFrame{nullptr};
 
-//                        std::string data{img.data()};
-//                        const uint32_t LEN{static_cast<uint32_t>(data.size())};
+                        std::string data{img.data()};
+                        const uint32_t LEN{static_cast<uint32_t>(data.size())};
 
-//                        if (vpx_codec_decode(&codec, reinterpret_cast<const unsigned char*>(data.c_str()), LEN, nullptr, 0)) {
-//                            std::cerr << "[opendlv-video-vpx-decoder]: Decoding for current frame failed." << std::endl;
-//                        }
-//                        else {
-//                            while (nullptr != (yuvFrame = vpx_codec_get_frame(&codec, &it))) {
-//                                sharedMemory->lock();
-//                                {
-//                                    libyuv::I420ToARGB(yuvFrame->planes[VPX_PLANE_Y], yuvFrame->stride[VPX_PLANE_Y], yuvFrame->planes[VPX_PLANE_U], yuvFrame->stride[VPX_PLANE_U], yuvFrame->planes[VPX_PLANE_V], yuvFrame->stride[VPX_PLANE_V], reinterpret_cast<uint8_t*>(sharedMemory->data()), WIDTH * 4, WIDTH, HEIGHT);
-//                                    if (VERBOSE) {
-//                                        XPutImage(display, window, DefaultGC(display, 0), ximage, 0, 0, 0, 0, WIDTH, HEIGHT);
-//                                    }
-//                                }
-//                                sharedMemory->unlock();
-//                                sharedMemory->notifyAll();
-//                            }
-//                        }
-//                    }
+                        if (aom_codec_decode(&codec, reinterpret_cast<const unsigned char*>(data.c_str()), LEN, nullptr)) {
+                            std::cerr << "[opendlv-video-aom-decoder]: Decoding for current frame failed." << std::endl;
+                        }
+                        else {
+                            while (nullptr != (yuvFrame = aom_codec_get_frame(&codec, &it))) {
+                                sharedMemory->lock();
+                                {
+                                    libyuv::I420ToARGB(yuvFrame->planes[AOM_PLANE_Y], yuvFrame->stride[AOM_PLANE_Y], yuvFrame->planes[AOM_PLANE_U], yuvFrame->stride[AOM_PLANE_U], yuvFrame->planes[AOM_PLANE_V], yuvFrame->stride[AOM_PLANE_V], reinterpret_cast<uint8_t*>(sharedMemory->data()), WIDTH * 4, WIDTH, HEIGHT);
+                                    if (VERBOSE) {
+                                        XPutImage(display, window, DefaultGC(display, 0), ximage, 0, 0, 0, 0, WIDTH, HEIGHT);
+                                    }
+                                }
+                                sharedMemory->unlock();
+                                sharedMemory->notifyAll();
+                            }
+                        }
+                    }
                 }
             }
         };
@@ -139,7 +130,7 @@ int32_t main(int32_t argc, char **argv) {
             std::this_thread::sleep_for(1s);
         }
 
-//        vpx_codec_destroy(&codec);
+        aom_codec_destroy(&codec);
 
         if (VERBOSE) {
             XCloseDisplay(display);
