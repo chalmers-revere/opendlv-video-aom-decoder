@@ -34,10 +34,10 @@ int32_t main(int32_t argc, char **argv) {
     auto commandlineArguments = cluon::getCommandlineArguments(argc, argv);
     if ( (0 == commandlineArguments.count("cid")) ||
          (0 == commandlineArguments.count("name")) ) {
-        std::cerr << argv[0] << " listens for VP80 or VP90 frames in an OD4Session to decode as ARGB image data into a shared memory area." << std::endl;
+        std::cerr << argv[0] << " listens for AV1 frames in an OD4Session to decode as ARGB image data into a shared memory area." << std::endl;
         std::cerr << "Usage:   " << argv[0] << " --cid=<OpenDaVINCI session> --name=<name of shared memory area> [--verbose]" << std::endl;
-        std::cerr << "         --cid:     CID of the OD4Session to listen for h264 frames" << std::endl;
-        std::cerr << "         --id:      when using several instances, only decode VP90 with this senderStamp" << std::endl;
+        std::cerr << "         --cid:     CID of the OD4Session to listen for AV1 frames" << std::endl;
+        std::cerr << "         --id:      when using several instances, only decode AV1 with this senderStamp" << std::endl;
         std::cerr << "         --name:    name of the shared memory area to create" << std::endl;
         std::cerr << "         --verbose: print decoding information and display image" << std::endl;
         std::cerr << "Example: " << argv[0] << " --cid=111 --name=data --verbose" << std::endl;
@@ -78,11 +78,13 @@ int32_t main(int32_t argc, char **argv) {
                         }
                         else {
                             sharedMemory.reset(new cluon::SharedMemory{NAME, WIDTH * HEIGHT * 4});
-                            std::clog << "[opendlv-video-aom-decoder]: Created shared memory " << NAME << " (" << (WIDTH * HEIGHT * 4) << " bytes) for an ARGB image (width = " << WIDTH << ", height = " << HEIGHT << ")." << std::endl;
 
                             if (!sharedMemory && !sharedMemory->valid()) {
                                 std::cerr << "[opendlv-video-aom-decoder]: Failed to create shared memory." << std::endl;
                                 running.store(false);
+                            }
+                            else {
+                                std::clog << "[opendlv-video-aom-decoder]: Created shared memory " << NAME << " (" << (WIDTH * HEIGHT * 4) << " bytes) for an ARGB image (width = " << WIDTH << ", height = " << HEIGHT << ")." << std::endl;
                             }
 
                             if (VERBOSE) {
