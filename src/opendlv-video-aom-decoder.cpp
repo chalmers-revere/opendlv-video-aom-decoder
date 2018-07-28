@@ -62,7 +62,7 @@ int32_t main(int32_t argc, char **argv) {
         auto onNewImage = [&running, &codec, &sharedMemory, &display, &visual, &window, &ximage, &NAME, &VERBOSE, &ID](cluon::data::Envelope &&env){
             if (ID == env.senderStamp()) {
                 opendlv::proxy::ImageReading img = cluon::extractMessage<opendlv::proxy::ImageReading>(std::move(env));
-                if ("AV01" == img.format()) {
+                if ("AV01" == img.fourcc()) {
                     const uint32_t WIDTH = img.width();
                     const uint32_t HEIGHT = img.height();
 
